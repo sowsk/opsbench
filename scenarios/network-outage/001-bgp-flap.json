@@ -1,0 +1,29 @@
+{
+  "id": "network-outage-001-bgp-flap",
+  "category": "network-outage",
+  "title": "BGP session flapping between edge router and upstream transit provider",
+  "severity": "high",
+  "alert": "ALERT: BGP_SESSION_DOWN\nDevice: edge-rtr-01.sfo.prod\nNeighbor: 198.51.100.1 (AS 64501, Transit-A)\nState transition: Established -> Active\nLast state change: 2026-06-07T14:23:00Z\nFlap count (last 1h): 7\nImpact: 12.4 Gbps shifted to backup transit\nRunbook: https://wiki.internal/runbooks/bgp-flap",
+  "context": [
+    "2026-06-07T13:18:00Z [edge-rtr-01.sfo.prod] BGP neighbor 198.51.100.1: state Established",
+    "2026-06-07T13:42:00Z [change-mgmt] CHG-44218 approved: 'Routine MPLS PE upgrade in Transit-A SFO POP, 13:00-17:00 UTC'",
+    "2026-06-07T14:09:00Z [edge-rtr-01.sfo.prod] %BGP-5-ADJCHANGE: neighbor 198.51.100.1 Down BGP Notification received",
+    "2026-06-07T14:11:00Z [edge-rtr-02.sfo.prod] BGP neighbor 198.51.100.5 (AS 64501, Transit-A) state: Established, no flaps",
+    "2026-06-07T14:15:00Z [noc-slack] customer-success: 'getting 3 reports of slow API responses from west-coast users, investigating'",
+    "2026-06-07T14:17:00Z [edge-rtr-01.sfo.prod] BGP neighbor 198.51.100.1: state Established (re-established)",
+    "2026-06-07T14:19:00Z [edge-rtr-01.sfo.prod] %BGP-5-ADJCHANGE: neighbor 198.51.100.1 Down hold timer expired",
+    "2026-06-07T14:22:00Z [monitoring] Synthetic check sfo-to-us-east-1 latency p95: 38ms -> 71ms (within SLO)",
+    "2026-06-07T14:23:00Z [edge-rtr-01.sfo.prod] %BGP-5-ADJCHANGE: neighbor 198.51.100.1 Down hold timer expired"
+  ],
+  "noise_lines": [4, 7],
+  "entities": {
+    "hostnames": ["edge-rtr-01.sfo.prod", "edge-rtr-02.sfo.prod"],
+    "ips": ["198.51.100.1", "198.51.100.5"],
+    "services": ["BGP", "MPLS", "Transit-A"],
+    "asns": ["AS 64501"],
+    "change_ids": ["CHG-44218"],
+    "timestamps": ["2026-06-07T14:23:00Z"]
+  },
+  "reference_summary": "edge-rtr-01.sfo.prod is flapping its BGP session with Transit-A (AS 64501, neighbor 198.51.100.1) 7 times in the last hour, coinciding with a Transit-A MPLS PE upgrade window (CHG-44218). Traffic has shifted cleanly to edge-rtr-02 and SLOs are intact, so the immediate user impact is contained.",
+  "reference_action": "Contact Transit-A NOC referencing CHG-44218 to confirm whether the flapping is expected during the maintenance window, and consider pre-emptively draining edge-rtr-01 to the backup path if the window extends past 17:00 UTC."
+}

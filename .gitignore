@@ -1,0 +1,21 @@
+# env
+.env
+.env.local
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.python-version
+*.egg-info/
+
+# eval runs (committed runs go in runs/published/, gitkeep that one)
+runs/*
+!runs/.gitkeep
+!runs/published/
+
+# os
+.DS_Store
+Thumbs.db
