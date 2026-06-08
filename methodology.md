@@ -80,11 +80,12 @@ Per model: mean across all 25 scenarios, normalized to a 0-2 scale by dividing b
 
 Each SUT is paired with a judge from a different model family to control for self-preference bias.
 
+v0.1 ships a two-family scheme (Anthropic + Google). v0.2 will add OpenAI as a third family once a personal API key is available; at that point GPT-5 enters as both an SUT and as the judge for the Claude SUTs, and Gemini's judge stays Claude Sonnet.
+
 | SUT | Judge |
 |---|---|
-| Claude Sonnet 4.6 | GPT-5 |
-| Claude Opus 4.8 | GPT-5 |
-| GPT-5 | Claude Sonnet 4.6 |
+| Claude Sonnet 4.6 | Gemini 2.5 Pro |
+| Claude Opus 4.8 | Gemini 2.5 Pro |
 | Gemini 2.5 Pro | Claude Sonnet 4.6 |
 
 If a new judge model is introduced, all SUTs already judged by the prior judge must be re-judged with the new one and the leaderboard re-published with the methodology change called out in the run notes.

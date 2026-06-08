@@ -35,13 +35,18 @@ JUDGE_PROMPT_PATH = HERE / "prompts" / "judge_prompt.md"
 
 # SUT -> judge mapping. Each SUT is judged by a model from a different family
 # to control for self-preference bias. Keep this list explicit; do not infer.
+#
+# v0.1 ships a two-family scheme (Anthropic + Google). v0.2 will add OpenAI
+# once a personal key is available; the commented entries below are the
+# intended additions at that point.
 JUDGE_PAIRING: dict[str, str] = {
-    "claude-sonnet-4-6": "gpt-5",
-    "claude-opus-4-8": "gpt-5",
-    "gpt-5": "claude-sonnet-4-6",
-    "gpt-5-mini": "claude-sonnet-4-6",
+    "claude-sonnet-4-6": "gemini-2.5-pro",
+    "claude-opus-4-8": "gemini-2.5-pro",
     "gemini-2.5-pro": "claude-sonnet-4-6",
-    "gemini-2.5-flash": "claude-sonnet-4-6",
+    # v0.2 additions (uncomment when GPT-5 is added back to DEFAULT_MODELS):
+    # "gpt-5": "claude-sonnet-4-6",
+    # "gpt-5-mini": "claude-sonnet-4-6",
+    # "gemini-2.5-flash": "claude-sonnet-4-6",
 }
 
 # Regex patterns for hallucinated-entity check. Conservative on purpose.

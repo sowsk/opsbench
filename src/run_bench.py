@@ -30,7 +30,7 @@ SCENARIOS_DIR = REPO_ROOT / "scenarios"
 SYSTEM_PROMPT_PATH = HERE / "prompts" / "system_prompt.md"
 RUNS_DIR = REPO_ROOT / "runs"
 
-DEFAULT_MODELS = "claude-sonnet-4-6,claude-opus-4-8,gpt-5,gemini-2.5-pro"
+DEFAULT_MODELS = "claude-sonnet-4-6,claude-opus-4-8,gemini-2.5-pro"
 
 
 def load_scenarios(scenario_ids: list[str] | None = None) -> list[dict]:
