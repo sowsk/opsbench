@@ -153,7 +153,15 @@ def _call_google(model: str, system: str, user: str, max_tokens: int) -> ModelRe
             contents=user,
             config=genai_types.GenerateContentConfig(
                 system_instruction=system,
-                max_output_tokens=max_tokens,
+                # Gemini 2.5 series counts internal "thinking" tokens against
+                # max_output_tokens. 2.5 Pro cannot disable thinking entirely
+                # (minimum budget is 128). Without clamping, dynamic thinking
+                # can eat the entire budget and the model returns "" for the
+                # actual response, which is unparseable for JSON judges.
+                # 128 is the safe floor for 2.5 Pro; 2.5 Flash allows 0 but
+                # we use 128 unconditionally for v0.1 since we only ship Pro.
+                max_output_tokens=max_tokens + 128,
+                thinking_config=genai_types.ThinkingConfig(thinking_budget=128),
             ),
         )
         output_text = resp.text or ""

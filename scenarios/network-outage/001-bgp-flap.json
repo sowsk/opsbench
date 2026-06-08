@@ -17,7 +17,7 @@
   ],
   "noise_lines": [4, 7],
   "entities": {
-    "hostnames": ["edge-rtr-01.sfo.prod", "edge-rtr-02.sfo.prod"],
+    "hostnames": ["edge-rtr-01.sfo.prod", "edge-rtr-02.sfo.prod", "wiki.internal"],
     "ips": ["198.51.100.1", "198.51.100.5"],
     "services": ["BGP", "MPLS", "Transit-A"],
     "asns": ["AS 64501"],

@@ -34,7 +34,7 @@ Every scenario is a single JSON file under `scenarios/<category>/<NNN-slug>.json
 - **`alert`**: realistic format for the source tool (Prometheus, Datadog, PagerDuty, ThousandEyes-style, etc.). Variety across scenarios is good; do not standardize.
 - **`context`**: 5 to 15 lines of preceding log lines, metric values, change-management events, or related alerts. Mix relevant signal with deliberate noise.
 - **`noise_lines`**: zero-indexed positions in `context` that the SUT should ignore. The judge penalizes summaries that quote noise lines. At least 1 noise line per scenario; recommended 2 to 4.
-- **`entities`**: the allow-list for the automated hallucination check. Every entity that appears in `alert` or `context` must be listed here. Anything the SUT outputs that is not in this list is flagged as hallucinated.
+- **`entities`**: the allow-list for the automated hallucination check. Every entity that appears in `alert` or `context` must be listed here, including hostnames embedded inside URLs (e.g. if the alert mentions `https://wiki.internal/runbooks/foo`, include `wiki.internal` in `hostnames`). Anything the SUT outputs that is not in this list is flagged as hallucinated.
 - **`reference_summary`**: write this yourself, as a senior PM with operational instincts. The judge anchors lightly on it but is told it is one valid answer, not the only one.
 - **`reference_action`**: a specific defensible next step that an on-call engineer would actually take. Not "investigate further"; something like "check BGP neighbor table on edge-rtr-01".
 

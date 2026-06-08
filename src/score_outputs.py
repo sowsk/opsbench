@@ -51,8 +51,16 @@ JUDGE_PAIRING: dict[str, str] = {
 
 # Regex patterns for hallucinated-entity check. Conservative on purpose.
 IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+
+# Hostname: requires the final segment after the last dot to start with a
+# letter. This prevents matches on:
+#   - IPs like 198.51.100.1 (final segment is a digit)
+#   - Decimal numbers like 12.4 (final segment is a digit)
+#   - Version strings like 1.2.3 (same reason)
+# Real hostnames like edge-rtr-01.sfo.prod, wiki.internal, foo.example.com
+# still match because their final segment starts with a letter.
 HOSTNAME_PATTERN = re.compile(
-    r"\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)+\b",
+    r"\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z][a-z0-9-]*\b",
     re.IGNORECASE,
 )
 TIMESTAMP_PATTERN = re.compile(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})?\b")
@@ -126,7 +134,7 @@ def automated_scores(scenario: dict, run_record: dict) -> dict:
     }
 
 
-def build_judge_user_message(scenario: dict, model_output: str) -> str:
+def build_judge_user_message(scenario: dict, model_output: str, sentence_count: int) -> str:
     return (
         f"SCENARIO_ID: {scenario['id']}\n"
         f"CATEGORY: {scenario['category']}\n"
@@ -138,13 +146,14 @@ def build_judge_user_message(scenario: dict, model_output: str) -> str:
         f"NOISE_LINES (indices that are deliberately irrelevant): {scenario.get('noise_lines', [])}\n\n"
         f"REFERENCE_SUMMARY (one valid answer, not the only one):\n{scenario.get('reference_summary', '(none)')}\n\n"
         f"REFERENCE_ACTION:\n{scenario.get('reference_action', '(none)')}\n\n"
+        f"AUTOMATED_SENTENCE_COUNT: {sentence_count}\n\n"
         f"MODEL_OUTPUT:\n{model_output}\n\n"
         f"Score per the system prompt. Return only JSON."
     )
 
 
-def run_judge(judge_model: str, judge_system: str, scenario: dict, model_output: str) -> dict:
-    user_msg = build_judge_user_message(scenario, model_output)
+def run_judge(judge_model: str, judge_system: str, scenario: dict, model_output: str, sentence_count: int) -> dict:
+    user_msg = build_judge_user_message(scenario, model_output, sentence_count)
     resp = call_model(judge_model, judge_system, user_msg, max_tokens=1024)
     if resp.error:
         return {"judge_model": judge_model, "judge_scores": None, "judge_error": resp.error}
@@ -266,7 +275,7 @@ def main() -> int:
                 entry["judge"] = {"judge_error": f"no JUDGE_PAIRING entry for {sut_model}"}
             else:
                 print(f"  [{i}/{total}] {scenario_id}/{sut_model} judged by {judge_model} ... ", end="", flush=True)
-                judge_result = run_judge(judge_model, judge_system, scenario, run_record["output"])
+                judge_result = run_judge(judge_model, judge_system, scenario, run_record["output"], auto["sentence_count"])
                 entry["judge"] = judge_result
                 if judge_result.get("judge_error"):
                     print(f"JUDGE ERROR: {judge_result['judge_error']}")

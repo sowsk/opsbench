@@ -29,11 +29,14 @@ The `noise_lines` field lists context indices that are deliberately irrelevant. 
 A defensible action does not have to match the reference action. It only has to be specific and consistent with what the input says.
 
 ### brevity (0-2)
-- 2: 1 or 2 sentences, no headers, no bullets, no preamble.
-- 1: 3 sentences, or 2 sentences with light formatting noise.
-- 0: 4+ sentences, multi-paragraph, or bullet points present.
 
-Count sentences using period, question mark, and exclamation mark boundaries. Do not count abbreviation periods. Confirm by reading.
+Use the `AUTOMATED_SENTENCE_COUNT` value provided in the input. Do not recount sentences yourself; the automated counter is deterministic and ground truth for this dimension.
+
+- 2: `AUTOMATED_SENTENCE_COUNT` is 1 or 2, AND no headers, no bullets, no preamble, no markdown formatting.
+- 1: `AUTOMATED_SENTENCE_COUNT` is 3, OR 2 sentences with light formatting noise (e.g., a colon-introduced list).
+- 0: `AUTOMATED_SENTENCE_COUNT` is 4 or more, OR multi-paragraph, OR bullet points present.
+
+A 2-sentence output with long, multi-clause sentences still scores 2 on brevity. Long sentences do not become multiple sentences; the rubric is structural, not aesthetic.
 
 ## Output
 
