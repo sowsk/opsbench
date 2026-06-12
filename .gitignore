@@ -16,6 +16,9 @@ runs/*
 !runs/.gitkeep
 !runs/published/
 
+# personal workflow docs (do not publish; absolute paths and prep context)
+PUBLIC-PUSH-CHECKLIST.md
+
 # os
 .DS_Store
 Thumbs.db
