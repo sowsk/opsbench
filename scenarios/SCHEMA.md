@@ -1,6 +1,14 @@
 # Scenario schema
 
-Every scenario is a single JSON file under `scenarios/<category>/<NNN-slug>.json`. Categories: `network-outage`, `app-perf-regression`, `security-event`, `capacity-warning`.
+Every scenario is a single JSON file under `scenarios/<category>/<NNN-slug>.json`. Categories: `network-outage`, `compute-fabric`, `app-perf-regression`, `security-event`, `capacity-warning`.
+
+## Category definitions
+
+- **network-outage**: connectivity issues at the IP/Ethernet/InfiniBand layers across nodes (BGP, MPLS, routing, link flaps, transit provider issues). Scenarios test the SUT's ability to reason about cross-node network failure and impact.
+- **compute-fabric**: GPU/AI cluster interconnect issues (NVLink, NVSwitch, PCIe at the GPU layer, RoCE/InfiniBand at the GPU layer). Scenarios test the SUT's ability to reason about AI compute fabric degradation distinct from traditional networking. The on-call who'd get paged is GPU/compute platform, not network.
+- **app-perf-regression**: application-level performance issues (database slowness, API latency, memory leaks, queue depth growth) not rooted in fabric or hardware degradation.
+- **security-event**: authentication anomalies, intrusion indicators, exfiltration patterns, privilege escalations.
+- **capacity-warning**: resource limits being approached (disk filling, memory pressure, queue saturation, quota exhaustion).
 
 ## Required fields
 
@@ -48,9 +56,9 @@ Every scenario is a single JSON file under `scenarios/<category>/<NNN-slug>.json
 
 ## Diversity targets for v0.1
 
-Across 25 scenarios:
+Across 25 to 30 scenarios:
 
-- At least 3 scenarios per category, evenly weighted toward 6 to 7.
+- At least 3 scenarios per category, evenly weighted toward 5 to 6.
 - At least 1 scenario per category should be deliberately ambiguous (no clear single right action) to stress action orientation.
 - At least 2 scenarios should contain a red herring (a context line that points toward a plausible-but-wrong root cause) to stress factual accuracy.
 - No two scenarios should share the same root cause.

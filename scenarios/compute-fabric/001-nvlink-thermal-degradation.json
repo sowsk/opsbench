@@ -1,0 +1,39 @@
+{
+  "id": "compute-fabric-001-nvlink-thermal-degradation",
+  "category": "compute-fabric",
+  "title": "NVLink port thermal degradation on H100 node, training cost-per-token spikes 271%",
+  "severity": "high",
+  "alert": "ALERT: NVLINK_PORT_DEGRADED\nSource: dcgm-exporter + nvidia driver dmesg correlation\nNode: h100-node-47.fab-a.cluster-blue.prod\nGPU: GPU-3 (NVML index 3, PCI 0x5e)\nNVLink Port: 4 (peer GPU-5 via NVSwitch tray-2)\nFirst detected: 2026-06-15T09:14:00Z\nSymptoms:\n  - NVLink port 4 CRC errors: 8,432/min (baseline 0-1/min over prior 24h)\n  - NVLink port 4 replay events: 127/min (baseline 0)\n  - NVLink port 4 temperature: 87\u00b0C (threshold 80\u00b0C, peer NVLink ports 45-52\u00b0C)\n  - NCCL falling back to PCIe path for GPU-3 to GPU-5 traffic\n  - AllReduce on job training-llm-32b-r3 throughput degraded\nImpact:\n  - Job training-llm-32b-r3 throughput: 4,250 -> 1,140 tokens/sec (-73%)\n  - Cost per million tokens: $0.84 -> $3.12 (+271%)\n  - 11 of 64 nodes in training pool waiting on NCCL re-routing\nRunbook: https://wiki.internal/runbooks/nvlink-port-thermal",
+  "context": [
+    "2026-06-15T07:30:00Z [change-mgmt] CHG-58291 approved: 'NVIDIA driver v570.86.10 push to cluster-green H100 fleet, 07:30-09:00 UTC'",
+    "2026-06-15T08:00:00Z [reporting] Weekly GPU utilization report: cluster-blue avg 87.3%, no anomalies",
+    "2026-06-15T08:42:00Z [training-orchestrator] NCCL ring initialized for job training-llm-32b-r3 across 64 H100 nodes on fab-a",
+    "2026-06-15T09:04:00Z [dcgm-exporter] h100-node-47.fab-a GPU-3 NVLink port 4 CRC errors: 12/min (first deviation from 0-1/min baseline)",
+    "2026-06-15T09:06:00Z [dcgm-exporter] h100-node-47.fab-a GPU-3 NVLink port 4 temperature: 78\u00b0C (approaching 80\u00b0C threshold; peer ports 45-52\u00b0C)",
+    "2026-06-15T09:08:00Z [dcgm-exporter] h100-node-47.fab-a GPU-3 NVLink port 4 temperature: 84\u00b0C (above 80\u00b0C threshold)",
+    "2026-06-15T09:09:00Z [ai-platform-slack] mlops-eng: 'is anyone seeing slowness on the model registry? trying to push a checkpoint'",
+    "2026-06-15T09:10:00Z [dcgm-exporter] h100-node-46.fab-a NVLink fabric health: nominal, all ports under 55\u00b0C",
+    "2026-06-15T09:11:00Z [dcgm-exporter] h100-node-47.fab-a GPU-3 NVLink port 4 CRC errors: 3,127/min (accelerating)",
+    "2026-06-15T09:12:00Z [nvidia-driver] dmesg: 'GPU 3: NVLink port 4 fallback to PCIe path due to error threshold exceeded'",
+    "2026-06-15T09:13:00Z [billing-telemetry] Job training-llm-32b-r3 cost-per-million-tokens: $0.84 -> $3.12 over last 60s window",
+    "2026-06-15T09:13:45Z [synthetic-checks] cluster-green inference endpoint p95 latency: 23ms (within SLO)",
+    "2026-06-15T09:14:00Z [alert] NVLINK_PORT_DEGRADED fires"
+  ],
+  "noise_lines": [1, 6, 7, 11],
+  "entities": {
+    "hostnames": ["h100-node-47.fab-a.cluster-blue.prod", "h100-node-46.fab-a.cluster-blue.prod", "wiki.internal"],
+    "ips": [],
+    "services": ["NCCL", "NVLink", "NVSwitch", "PCIe", "NVML", "DCGM", "dcgm-exporter", "nvidia-driver", "training-orchestrator", "billing-telemetry", "ai-platform-slack", "change-mgmt", "reporting", "synthetic-checks"],
+    "gpus": ["GPU-3", "GPU-5"],
+    "nvlink_ports": ["NVLink port 4"],
+    "nvswitch": ["NVSwitch tray-2"],
+    "fabrics": ["fab-a"],
+    "clusters": ["cluster-blue", "cluster-green"],
+    "change_ids": ["CHG-58291"],
+    "driver_versions": ["v570.86.10"],
+    "job_ids": ["training-llm-32b-r3"],
+    "timestamps": ["2026-06-15T09:14:00Z"]
+  },
+  "reference_summary": "NVLink port 4 on GPU-3 of h100-node-47.fab-a is overheating (87\u00b0C against the 80\u00b0C threshold; peer NVLink ports sit at 45-52\u00b0C), corrupting data frames in transit (the CRC error spike) and forcing constant retransmissions until NCCL gave up on the degraded link and fell back to the slower PCIe path for GPU-3 to GPU-5 traffic, degrading AllReduce throughput for the training-llm-32b-r3 job. That fallback drove cost-per-million-tokens from $0.84 to $3.12 (+271%) across 11 of 64 nodes; the earlier NVIDIA driver push (CHG-58291) targeted cluster-green rather than the affected cluster-blue node, so the root cause is a localized NVLink thermal event on NVSwitch tray-2, not a driver regression.",
+  "reference_action": "Drain h100-node-47.fab-a from the training pool so NCCL can rebuild the ring on the remaining 63 nodes without the degraded NVLink path, open a hardware ticket to inspect GPU-3 mezzanine seating and NVLink connector contamination on NVSwitch tray-2, and confirm training-llm-32b-r3 cost-per-million-tokens returns to baseline (around $0.84) before declaring the incident resolved."
+}
