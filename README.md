@@ -50,17 +50,15 @@ Full scenario format and the other 24: [scenarios/SCHEMA.md](scenarios/SCHEMA.md
 ## Leaderboard
 
 <!-- LEADERBOARD:START -->
-*v0.1 has not been run yet. Once the first run lands, this block updates in place via `python -m src.leaderboard --run-dir runs/<timestamp>`. Do not edit by hand.*
+## Leaderboard (2026-06-19_151811)
 
-Shape of what will appear here once v0.1 publishes:
+| Rank | Model | Mean score (0-2) | Factual accuracy | Signal/noise | Action orientation | Brevity | No hallucination |
+|---|---|---|---|---|---|---|---|
+| 1 | `claude-opus-4-8` | **1.92** | 2.00 | 2.00 | 2.00 | 2.00 | 1.60 |
+| 2 | `gemini-2.5-pro` | **1.84** | 1.60 | 1.80 | 1.80 | 2.00 | 2.00 |
+| 3 | `claude-sonnet-4-6` | **1.80** | 1.80 | 1.80 | 1.80 | 2.00 | 1.60 |
 
-| Rank | Model (SUT) | Judge | Mean (0-2) | Factual | Signal/noise | Action | Brevity | No hallucination |
-|---|---|---|---|---|---|---|---|---|
-| 1 | claude-opus-4-8 | gemini-2.5-pro | TBD | TBD | TBD | TBD | TBD | TBD |
-| 2 | claude-sonnet-4-6 | gemini-2.5-pro | TBD | TBD | TBD | TBD | TBD | TBD |
-| 3 | gemini-2.5-pro | claude-sonnet-4-6 | TBD | TBD | TBD | TBD | TBD | TBD |
-
-GPT-5 and Haiku 4.5 join the table in v0.2 once a personal OpenAI key is wired in. The runner, scorer, and pricing tables already support them.
+Run: `2026-06-19_151811`. Reproduce: `python -m src.run_bench` then `python -m src.score_outputs --run-dir runs/2026-06-19_151811` then `python -m src.leaderboard --run-dir runs/2026-06-19_151811`.
 <!-- LEADERBOARD:END -->
 
 ## How it works
