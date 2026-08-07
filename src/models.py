@@ -1,10 +1,10 @@
 """Thin multi-provider model client.
 
 Normalizes Anthropic, OpenAI, and Google Gemini behind a single call_model()
-function. v0.1 intentionally avoids a heavyweight abstraction (LangChain,
+function. OpsBench intentionally avoids a heavyweight abstraction (LangChain,
 LiteLLM); the goal is to be readable and reproducible.
 
-Pricing snapshot for cost estimation: June 2026. Update when providers change
+Pricing snapshot for cost estimation: August 7, 2026. Update when providers change
 pricing. If a model is missing from PRICING, cost is reported as 0.0 with a
 note in the run summary.
 """
@@ -16,14 +16,25 @@ from dataclasses import dataclass
 
 from .http_client import build_http_client
 
+# Standard short-context pricing in USD per 1M tokens, snapshot 2026-08-07.
+# OpsBench prompts are far below provider long-context pricing thresholds.
+# Anthropic Sonnet 5 uses its introductory price through 2026-08-31.
 # (input $/M tokens, output $/M tokens)
 PRICING: dict[str, tuple[float, float]] = {
+    "claude-fable-5": (10.0, 50.0),
+    "claude-opus-5": (5.0, 25.0),
+    "claude-sonnet-5": (2.0, 10.0),
     "claude-opus-4-8": (5.0, 25.0),
     "claude-sonnet-4-6": (3.0, 15.0),
-    "claude-haiku-4-5-20251001": (0.8, 4.0),
-    "gpt-5": (5.0, 25.0),
-    "gpt-5-mini": (0.5, 2.5),
-    "gemini-2.5-pro": (3.5, 14.0),
+    "claude-haiku-4-5-20251001": (1.0, 5.0),
+    "gpt-5.6-sol": (5.0, 30.0),
+    "gpt-5.6-terra": (2.0, 12.0),
+    "gpt-5.6-luna": (0.2, 1.2),
+    "gpt-5": (1.25, 10.0),
+    "gpt-5-mini": (0.25, 2.0),
+    "gemini-3.6-flash": (1.5, 7.5),
+    "gemini-3.5-flash-lite": (0.3, 2.5),
+    "gemini-2.5-pro": (1.25, 10.0),
     "gemini-2.5-flash": (0.3, 1.2),
 }
 
@@ -148,20 +159,25 @@ def _call_google(model: str, system: str, user: str, max_tokens: int) -> ModelRe
     client = genai.Client(api_key=api_key)
     start = time.time()
     try:
+        if model.startswith("gemini-3.6-"):
+            thinking_config = genai_types.ThinkingConfig(thinking_level="medium")
+            output_budget = max_tokens
+        elif model.startswith("gemini-3.5-flash-lite"):
+            thinking_config = genai_types.ThinkingConfig(thinking_level="minimal")
+            output_budget = max_tokens
+        else:
+            # Gemini 2.5 Pro cannot disable thinking entirely. Reserve the
+            # 128-token minimum so thinking does not consume the visible output.
+            thinking_config = genai_types.ThinkingConfig(thinking_budget=128)
+            output_budget = max_tokens + 128
+
         resp = client.models.generate_content(
             model=model,
             contents=user,
             config=genai_types.GenerateContentConfig(
                 system_instruction=system,
-                # Gemini 2.5 series counts internal "thinking" tokens against
-                # max_output_tokens. 2.5 Pro cannot disable thinking entirely
-                # (minimum budget is 128). Without clamping, dynamic thinking
-                # can eat the entire budget and the model returns "" for the
-                # actual response, which is unparseable for JSON judges.
-                # 128 is the safe floor for 2.5 Pro; 2.5 Flash allows 0 but
-                # we use 128 unconditionally for v0.1 since we only ship Pro.
-                max_output_tokens=max_tokens + 128,
-                thinking_config=genai_types.ThinkingConfig(thinking_budget=128),
+                max_output_tokens=output_budget,
+                thinking_config=thinking_config,
             ),
         )
         output_text = resp.text or ""

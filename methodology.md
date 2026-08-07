@@ -1,6 +1,6 @@
 # Methodology
 
-How opsbench v0.1 scores models on alert summarization.
+How OpsBench v0.2 scores models on alert summarization and reports observed API latency and estimated cost.
 
 ## Task
 
@@ -57,13 +57,13 @@ Sentence counting uses period, question mark, and exclamation mark boundaries wi
 
 ### 5. No hallucinated entities (automated, 0 or 2)
 
-Did the model invent host names, IP addresses, service names, or timestamps not present in the input?
+Did the model invent host names, IP addresses, or timestamps not present in the input?
 
 The runner extracts entities from the SUT output using simple regex:
 
 - IPv4: `\b(?:\d{1,3}\.){3}\d{1,3}\b`
-- Hostnames: `\b[a-z0-9-]+\.(?:com|net|internal|local|prod|stage|svc)[a-z0-9.-]*\b`
-- ISO timestamps: `\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\b`
+- Hostnames: final segment must begin with a letter and contain at least two characters; this excludes IPs, decimals, and abbreviations such as `e.g.`.
+- ISO timestamps: supports `Z` and numeric timezone suffixes.
 - Allow-list match against the scenario's `entities` field.
 
 If every extracted entity is in the allow-list, score = 2. If any is not, score = 0. No partial credit.
@@ -74,47 +74,62 @@ This dimension is binary on purpose. Hallucinating a host name in operational su
 
 Per (model, scenario): sum of the 5 dimension scores. Max = 10.
 
-Per model: mean across all 25 scenarios, normalized to a 0-2 scale by dividing by 5. Reported in the leaderboard as the "Mean score" column.
+Per model: mean across all five v0.2 scenarios, normalized to a 0-2 scale by dividing by 5. Reported in the leaderboard as the "Mean quality" column.
+
+Quality alone determines leaderboard rank. Cost and latency are deliberately not folded into the quality score.
+
+## Operational measurements
+
+The runner records end-to-end elapsed time, input tokens, output tokens, and estimated API cost for every successful call. The leaderboard reports:
+
+- **Median observed latency:** median elapsed time across the five sequential scenario calls. This includes client, network, queueing, provider, and generation time; it is not isolated server-side inference latency.
+- **Average cost per scenario:** mean estimated cost across the five calls, using the token counts returned by each provider and the pricing snapshot in `src/models.py`.
+
+These measurements are directional. Five sequential calls are enough to expose large product-level differences, but not enough to characterize tail latency, throughput, caching, or performance under load.
 
 ## Anti-bias judge pairing
 
-Each SUT is paired with a judge from a different model family to control for self-preference bias.
+Each SUT is paired with a judge from a different model family to avoid same-family judging. This reduces one obvious source of self-preference, but it is not sufficient evidence that judge bias is controlled.
 
-v0.1 ships a two-family scheme (Anthropic + Google). v0.2 will add OpenAI as a third family once a personal API key is available; at that point GPT-5 enters as both an SUT and as the judge for the Claude SUTs, and Gemini's judge stays Claude Sonnet.
+The v0.2 run uses current Anthropic, OpenAI, and Google models. Every published run records its exact SUT and judge IDs.
 
 | SUT | Judge |
 |---|---|
-| Claude Sonnet 4.6 | Gemini 2.5 Pro |
-| Claude Opus 4.8 | Gemini 2.5 Pro |
-| Gemini 2.5 Pro | Claude Sonnet 4.6 |
+| Claude Opus 5 | GPT-5.6 Terra |
+| Claude Sonnet 5 | GPT-5.6 Terra |
+| GPT-5.6 Terra | Claude Sonnet 5 |
+| Gemini 3.6 Flash | Claude Sonnet 5 |
 
 If a new judge model is introduced, all SUTs already judged by the prior judge must be re-judged with the new one and the leaderboard re-published with the methodology change called out in the run notes.
 
 ## Validation against human scoring
 
-For the first published run, hand-score 3 cases (one per non-control category) and compare against the judge. Target agreement: 80 percent or better on the 4 judge-scored dimensions. If below 80 percent, the run is published with a warning and the judge prompt is revised before the next run.
+The v0.2 judge has not yet been calibrated against author scoring. Until this is complete, the leaderboard must remain labeled as a pilot rather than a validated model ranking.
 
-Validation cases for v0.1:
+The project author should hand-score all four models on the three cases below and compare the 48 resulting dimension scores against the judge. Target exact agreement: 80 percent or better. If agreement is below 80 percent, keep the warning and revise the judge prompt before the next run. The worksheet and procedure live under `validation/`.
+
+Validation cases for v0.2:
 
 - `network-outage-001-bgp-flap`
-- `app-perf-regression-001-db-pool-exhaustion`
-- `security-event-001-credential-spray`
+- `app-perf-regression-001-gke-slo-cloudsql-replica-lag`
+- `security-event-001-cloud-armor-waf-checkout-block`
 
 ## Known limitations of the methodology
 
 - Synthetic scenarios pattern-match to public incident vocabulary. A model that has memorized incident.io post-mortems will look better than one that has not, even if real on-call performance is identical.
 - The 2-sentence cap is a deliberate constraint. Models that summarize in 3-4 sentences may be more useful in production but score lower here.
-- The judge sees the reference summary. There is some risk that the judge anchors on the reference even though instructed not to. Mitigated by anti-bias pairing and validation against human scoring.
-- Hallucinated entities check uses regex, which misses entity types not in the regex set. v0.1 explicitly does not check, for example, error code numbers or version strings.
+- The judge sees the reference summary. There is some risk that the judge anchors on it even though instructed not to. Cross-family pairing does not remove this risk, and author calibration is still pending.
+- Hallucinated entities check uses regex, which misses entity types not in the regex set. v0.2 explicitly does not check, for example, error code numbers or version strings.
+- Observed latency uses five sequential calls per model from one client location. It is not a statistically stable provider performance comparison.
 
 ## Reproducibility
 
-Every published run includes:
+Every published run directory under `runs/published/` includes:
 
 - Git commit hash of the runner.
 - Exact model IDs and versions for SUT and judge.
 - Full `outputs.jsonl` and `scores.jsonl`.
-- Total tokens and cost.
+- Per-call tokens, observed latency, and estimated cost, plus aggregate latency and cost.
 - Any methodology changes since the previous published run, called out at the top of the run notes.
 
 If a published number cannot be reproduced from the committed artifacts plus the methodology, that is a bug and should be filed as an issue.

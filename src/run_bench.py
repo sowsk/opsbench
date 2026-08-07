@@ -5,7 +5,7 @@ outputs.jsonl to runs/<timestamp>/.
 
 Usage:
     python -m src.run_bench
-    python -m src.run_bench --models claude-sonnet-4-6,gpt-5
+    python -m src.run_bench --models claude-sonnet-5,gpt-5.6-terra,gemini-3.6-flash
     python -m src.run_bench --scenarios network-outage-001-bgp-flap
 """
 from __future__ import annotations
@@ -30,7 +30,9 @@ SCENARIOS_DIR = REPO_ROOT / "scenarios"
 SYSTEM_PROMPT_PATH = HERE / "prompts" / "system_prompt.md"
 RUNS_DIR = REPO_ROOT / "runs"
 
-DEFAULT_MODELS = "claude-sonnet-4-6,claude-opus-4-8,gemini-2.5-pro"
+# One current, balanced model per provider. Historical published runs retain
+# their exact model IDs in their run artifacts.
+DEFAULT_MODELS = "claude-sonnet-5,gpt-5.6-terra,gemini-3.6-flash"
 
 
 def load_scenarios(scenario_ids: list[str] | None = None) -> list[dict]:
@@ -59,6 +61,20 @@ def build_user_message(scenario: dict) -> str:
     return "\n".join(parts)
 
 
+def resolve_out_dir(value: str | None, timestamp: str) -> Path:
+    """Resolve relative output paths from the repository root."""
+    path = Path(value) if value else RUNS_DIR / timestamp
+    return path if path.is_absolute() else REPO_ROOT / path
+
+
+def display_path(path: Path) -> str:
+    """Prefer a repository-relative path, while allowing external paths."""
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run opsbench scenarios against one or more models.")
     parser.add_argument("--models", default=DEFAULT_MODELS,
@@ -78,7 +94,7 @@ def main() -> int:
     system_prompt = SYSTEM_PROMPT_PATH.read_text()
 
     timestamp = dt.datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    out_dir = Path(args.out_dir) if args.out_dir else RUNS_DIR / timestamp
+    out_dir = resolve_out_dir(args.out_dir, timestamp)
     out_dir.mkdir(parents=True, exist_ok=True)
     outputs_path = out_dir / "outputs.jsonl"
 
@@ -118,8 +134,11 @@ def main() -> int:
     print(f"Done. {total - failures}/{total} calls succeeded.")
     print(f"Outputs: {outputs_path}")
     print()
-    print(f"Next: python -m src.score_outputs --run-dir {out_dir.relative_to(REPO_ROOT)}")
-    return 0 if failures == 0 else 1
+    if failures:
+        print("Resolve the provider errors above before scoring this run.")
+        return 1
+    print(f"Next: python -m src.score_outputs --run-dir {display_path(out_dir)}")
+    return 0
 
 
 if __name__ == "__main__":

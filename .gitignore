@@ -1,6 +1,7 @@
 # env
 .env
 .env.local
+.env.save
 
 # python
 __pycache__/
@@ -15,6 +16,7 @@ venv/
 runs/*
 !runs/.gitkeep
 !runs/published/
+!runs/published/**
 
 # personal workflow docs (do not publish; absolute paths and prep context)
 PUBLIC-PUSH-CHECKLIST.md
