@@ -170,8 +170,7 @@ MIT.
 
 ## About
 
-I'm [Sowmya Krishnamoorthy](https://www.linkedin.com/in/sowmya-krishnamoorthy), a product manager working on observability and AI for operations at ThousandEyes (Cisco). I'm interested in the gap between an AI feature that looks impressive in a demo and one an operator can actually trust during an incident.
+Built by [Sowmya Krishnamoorthy](https://www.linkedin.com/in/sowmya-krishnamoorthy), a senior product working on observability and AI for operations at ThousandEyes (Cisco). The question I keep coming back to is simple: when alerts are noisy and an incident is unfolding, can AI help an operator make a better decision?
 
-I built opsbench to explore that gap in public: can a model separate signal from noise, stay grounded in the evidence, and suggest a useful next step when time matters? I'm especially interested in practical evals that reflect real operational work.
-
+I built opsbench to test that question in public. It measures whether models can identify what matters, stay grounded in the evidence, and recommend a defensible next step. I'm interested in evals that reflect the messiness of real operational work.
 [@sowsk](https://github.com/sowsk) on GitHub.
