@@ -29,26 +29,38 @@ START_MARKER = "<!-- LEADERBOARD:START -->"
 END_MARKER = "<!-- LEADERBOARD:END -->"
 
 
-def build_table(summary: dict, run_label: str) -> str:
+def build_table(summary: dict, run_label: str, run_path: str | None = None, note: str = "") -> str:
     rows = sorted(summary.items(), key=lambda kv: -kv[1]["mean_score"])
     lines = [
         f"## Leaderboard ({run_label})",
         "",
-        "| Rank | Model | Mean score (0-2) | Factual accuracy | Signal/noise | Action orientation | Brevity | No hallucination |",
-        "|---|---|---|---|---|---|---|---|",
+        "| Rank | Model | Mean quality (0-2) | Factual accuracy | Signal/noise | Action orientation | Brevity | No hallucination | Median observed latency | Avg cost/scenario |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for rank, (model, agg) in enumerate(rows, 1):
         d = agg["dimension_means"]
+        performance = agg.get("performance", {})
+        latency = performance.get("median_observed_latency_ms")
+        mean_cost = performance.get("mean_cost_usd_per_scenario")
+        latency_text = f"{latency / 1000:.2f}s" if isinstance(latency, (int, float)) else "—"
+        cost_text = f"${mean_cost:.4f}" if isinstance(mean_cost, (int, float)) else "—"
         lines.append(
             f"| {rank} | `{model}` | **{agg['mean_score']:.2f}** | "
             f"{d['factual_accuracy']:.2f} | {d['signal_to_noise']:.2f} | "
-            f"{d['action_orientation']:.2f} | {d['brevity']:.2f} | {d['no_hallucinated_entities']:.2f} |"
+            f"{d['action_orientation']:.2f} | {d['brevity']:.2f} | {d['no_hallucinated_entities']:.2f} | "
+            f"{latency_text} | {cost_text} |"
         )
     lines.append("")
     if any(agg["judge_failures"] for _, agg in rows):
         lines.append("> Note: some judge calls failed and were excluded from the dimension means. See the run's scores.jsonl for details.")
         lines.append("")
-    lines.append(f"Run: `{run_label}`. Reproduce: `python -m src.run_bench` then `python -m src.score_outputs --run-dir runs/{run_label}` then `python -m src.leaderboard --run-dir runs/{run_label}`.")
+    artifact_path = run_path or f"runs/{run_label}"
+    lines.append(f"Run: `{run_label}`. Artifacts: `{artifact_path}`.")
+    lines.append("")
+    lines.append("> Quality determines rank. Latency is median end-to-end API time over five sequential calls and includes network/provider overhead; cost is estimated from the recorded tokens and pricing snapshot.")
+    if note:
+        lines.append("")
+        lines.append(f"> Run note: {note}")
     return "\n".join(lines)
 
 
@@ -88,7 +100,16 @@ def main() -> int:
         return 1
 
     run_label = run_dir.name
-    table_md = build_table(summary, run_label)
+    try:
+        run_path = str(run_dir.relative_to(REPO_ROOT))
+    except ValueError:
+        run_path = str(run_dir)
+    manifest_path = run_dir / "run.json"
+    note = ""
+    if manifest_path.exists():
+        with manifest_path.open() as f:
+            note = json.load(f).get("note", "")
+    table_md = build_table(summary, run_label, run_path, note)
 
     print(table_md)
 

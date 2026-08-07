@@ -1,0 +1,13 @@
+scenario_id,model,human_factual_accuracy,human_signal_to_noise,human_action_orientation,human_brevity,notes
+network-outage-001-bgp-flap,claude-opus-5,,,,,
+network-outage-001-bgp-flap,claude-sonnet-5,,,,,
+network-outage-001-bgp-flap,gpt-5.6-terra,,,,,
+network-outage-001-bgp-flap,gemini-3.6-flash,,,,,
+app-perf-regression-001-gke-slo-cloudsql-replica-lag,claude-opus-5,,,,,
+app-perf-regression-001-gke-slo-cloudsql-replica-lag,claude-sonnet-5,,,,,
+app-perf-regression-001-gke-slo-cloudsql-replica-lag,gpt-5.6-terra,,,,,
+app-perf-regression-001-gke-slo-cloudsql-replica-lag,gemini-3.6-flash,,,,,
+security-event-001-cloud-armor-waf-checkout-block,claude-opus-5,,,,,
+security-event-001-cloud-armor-waf-checkout-block,claude-sonnet-5,,,,,
+security-event-001-cloud-armor-waf-checkout-block,gpt-5.6-terra,,,,,
+security-event-001-cloud-armor-waf-checkout-block,gemini-3.6-flash,,,,,

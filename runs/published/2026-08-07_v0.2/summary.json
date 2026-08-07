@@ -1,0 +1,78 @@
+{
+  "claude-opus-5": {
+    "n": 5,
+    "judged_n": 5,
+    "judge_failures": 0,
+    "dimension_means": {
+      "factual_accuracy": 1.2,
+      "signal_to_noise": 1.8,
+      "action_orientation": 1.8,
+      "brevity": 2.0,
+      "no_hallucinated_entities": 2.0
+    },
+    "mean_score": 1.76,
+    "performance": {
+      "median_observed_latency_ms": 6451,
+      "mean_observed_latency_ms": 6007,
+      "mean_cost_usd_per_scenario": 0.018113,
+      "total_cost_usd": 0.090565
+    }
+  },
+  "claude-sonnet-5": {
+    "n": 5,
+    "judged_n": 5,
+    "judge_failures": 0,
+    "dimension_means": {
+      "factual_accuracy": 1.6,
+      "signal_to_noise": 1.8,
+      "action_orientation": 2.0,
+      "brevity": 2.0,
+      "no_hallucinated_entities": 2.0
+    },
+    "mean_score": 1.88,
+    "performance": {
+      "median_observed_latency_ms": 5104,
+      "mean_observed_latency_ms": 5091,
+      "mean_cost_usd_per_scenario": 0.005493,
+      "total_cost_usd": 0.027466
+    }
+  },
+  "gpt-5.6-terra": {
+    "n": 5,
+    "judged_n": 5,
+    "judge_failures": 0,
+    "dimension_means": {
+      "factual_accuracy": 2.0,
+      "signal_to_noise": 1.8,
+      "action_orientation": 2.0,
+      "brevity": 2.0,
+      "no_hallucinated_entities": 2.0
+    },
+    "mean_score": 1.96,
+    "performance": {
+      "median_observed_latency_ms": 2395,
+      "mean_observed_latency_ms": 2465,
+      "mean_cost_usd_per_scenario": 0.003378,
+      "total_cost_usd": 0.01689
+    }
+  },
+  "gemini-3.6-flash": {
+    "n": 5,
+    "judged_n": 5,
+    "judge_failures": 0,
+    "dimension_means": {
+      "factual_accuracy": 1.2,
+      "signal_to_noise": 0.8,
+      "action_orientation": 0.0,
+      "brevity": 1.8,
+      "no_hallucinated_entities": 2.0
+    },
+    "mean_score": 1.16,
+    "performance": {
+      "median_observed_latency_ms": 3817,
+      "mean_observed_latency_ms": 3702,
+      "mean_cost_usd_per_scenario": 0.002101,
+      "total_cost_usd": 0.010506
+    }
+  }
+}

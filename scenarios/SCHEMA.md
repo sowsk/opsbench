@@ -52,9 +52,9 @@ Every scenario is a single JSON file under `scenarios/<category>/<NNN-slug>.json
 2. Find the next available 3-digit number.
 3. Copy an existing scenario as a template.
 4. Edit. Be honest about whether the scenario reflects a real-world alert shape; if it does not, fix the shape, not the alert text.
-5. Run `python -m src.validate_scenarios` (TODO post-v0.1) before opening a PR.
+5. Run `python -m src.validate_scenarios` before opening a PR.
 
-## Diversity targets for v0.1
+## Diversity targets for v0.2
 
 Across 25 to 30 scenarios:
 

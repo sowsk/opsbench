@@ -10,6 +10,8 @@ different family. Defined in JUDGE_PAIRING below.
 Usage:
     python -m src.score_outputs --run-dir runs/2026-06-08_120000
     python -m src.score_outputs --run-dir <dir> --skip-judge   # automated only
+    python -m src.score_outputs --run-dir <dir> --reuse-judge-scores
+    python -m src.score_outputs --run-dir <dir> --retry-judge-failures
 """
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
+from statistics import median
 
 try:
     from dotenv import load_dotenv
@@ -34,19 +37,27 @@ SCENARIOS_DIR = REPO_ROOT / "scenarios"
 JUDGE_PROMPT_PATH = HERE / "prompts" / "judge_prompt.md"
 
 # SUT -> judge mapping. Each SUT is judged by a model from a different family
-# to control for self-preference bias. Keep this list explicit; do not infer.
+# to avoid same-family judging. Keep this list explicit; do not infer.
 #
-# v0.1 ships a two-family scheme (Anthropic + Google). v0.2 will add OpenAI
-# once a personal key is available; the commented entries below are the
-# intended additions at that point.
+# Historical and current pairings are both kept so old runs can be reproduced.
+# Current Anthropic outputs use an OpenAI judge; current OpenAI and Google
+# outputs use an Anthropic judge. Human calibration is still required before
+# treating cross-family pairing as a proven bias control.
 JUDGE_PAIRING: dict[str, str] = {
     "claude-sonnet-4-6": "gemini-2.5-pro",
     "claude-opus-4-8": "gemini-2.5-pro",
     "gemini-2.5-pro": "claude-sonnet-4-6",
-    # v0.2 additions (uncomment when GPT-5 is added back to DEFAULT_MODELS):
-    # "gpt-5": "claude-sonnet-4-6",
-    # "gpt-5-mini": "claude-sonnet-4-6",
-    # "gemini-2.5-flash": "claude-sonnet-4-6",
+    "claude-fable-5": "gpt-5.6-terra",
+    "claude-opus-5": "gpt-5.6-terra",
+    "claude-sonnet-5": "gpt-5.6-terra",
+    "gpt-5.6-sol": "claude-sonnet-5",
+    "gpt-5.6-terra": "claude-sonnet-5",
+    "gpt-5.6-luna": "claude-sonnet-5",
+    "gpt-5": "claude-sonnet-5",
+    "gpt-5-mini": "claude-sonnet-5",
+    "gemini-3.6-flash": "claude-sonnet-5",
+    "gemini-3.5-flash-lite": "claude-sonnet-5",
+    "gemini-2.5-flash": "claude-sonnet-5",
 }
 
 # Regex patterns for hallucinated-entity check. Conservative on purpose.
@@ -58,9 +69,10 @@ IP_PATTERN = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 #   - Decimal numbers like 12.4 (final segment is a digit)
 #   - Version strings like 1.2.3 (same reason)
 # Real hostnames like edge-rtr-01.sfo.prod, wiki.internal, foo.example.com
-# still match because their final segment starts with a letter.
+# still match. Requiring at least two characters in the final segment avoids
+# treating abbreviations such as "e.g." and "i.e." as hostnames.
 HOSTNAME_PATTERN = re.compile(
-    r"\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z][a-z0-9-]*\b",
+    r"\b[a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)*\.[a-z][a-z0-9-]+\b",
     re.IGNORECASE,
 )
 TIMESTAMP_PATTERN = re.compile(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})?\b")
@@ -69,6 +81,14 @@ TIMESTAMP_PATTERN = re.compile(r"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\
 def load_jsonl(path: Path) -> list[dict]:
     with path.open() as f:
         return [json.loads(line) for line in f if line.strip()]
+
+
+def display_path(path: Path) -> str:
+    """Prefer a repository-relative path, while allowing external paths."""
+    try:
+        return str(path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(path)
 
 
 def load_scenarios() -> dict[str, dict]:
@@ -106,9 +126,9 @@ def hallucinated_entities(output: str, scenario: dict) -> dict[str, list[str]]:
     hallucinated_timestamps = [t for t in extracted["timestamps"] if t not in allowed_timestamps]
 
     return {
-        "ips": list(set(hallucinated_ips)),
-        "hostnames": list(set(hallucinated_hostnames)),
-        "timestamps": list(set(hallucinated_timestamps)),
+        "ips": sorted(set(hallucinated_ips)),
+        "hostnames": sorted(set(hallucinated_hostnames)),
+        "timestamps": sorted(set(hallucinated_timestamps)),
     }
 
 
@@ -182,6 +202,14 @@ def run_judge(judge_model: str, judge_system: str, scenario: dict, model_output:
     }
 
 
+def has_valid_judge_scores(judge: dict | None) -> bool:
+    """Return whether a prior judge result can be safely reused."""
+    if not isinstance(judge, dict) or judge.get("judge_error"):
+        return False
+    payload = judge.get("judge_scores")
+    return isinstance(payload, dict) and isinstance(payload.get("scores"), dict)
+
+
 def aggregate_by_model(scores: list[dict]) -> dict[str, dict]:
     """Compute mean dimension scores and overall mean per model."""
     by_model: dict[str, list[dict]] = defaultdict(list)
@@ -202,10 +230,19 @@ def aggregate_by_model(scores: list[dict]) -> dict[str, dict]:
         }
         no_hallucination_sum = 0.0
         judge_failures = 0
+        elapsed_values: list[int] = []
+        cost_values: list[float] = []
 
         for s in model_scores:
             auto = s["automated"]
             no_hallucination_sum += auto["no_hallucination_score"]
+            observed = s.get("observed", {})
+            elapsed = observed.get("elapsed_ms")
+            cost = observed.get("cost_usd")
+            if isinstance(elapsed, (int, float)):
+                elapsed_values.append(int(elapsed))
+            if isinstance(cost, (int, float)):
+                cost_values.append(float(cost))
             judge = s.get("judge", {}).get("judge_scores")
             if not judge or not isinstance(judge, dict) or "scores" not in judge:
                 judge_failures += 1
@@ -226,6 +263,12 @@ def aggregate_by_model(scores: list[dict]) -> dict[str, dict]:
             "judge_failures": judge_failures,
             "dimension_means": means,
             "mean_score": round(mean_total, 3),
+            "performance": {
+                "median_observed_latency_ms": round(median(elapsed_values)) if elapsed_values else None,
+                "mean_observed_latency_ms": round(sum(elapsed_values) / len(elapsed_values)) if elapsed_values else None,
+                "mean_cost_usd_per_scenario": round(sum(cost_values) / len(cost_values), 6) if cost_values else None,
+                "total_cost_usd": round(sum(cost_values), 6) if cost_values else None,
+            },
         }
     return out
 
@@ -234,7 +277,22 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Score opsbench outputs.")
     parser.add_argument("--run-dir", required=True, help="Directory with outputs.jsonl")
     parser.add_argument("--skip-judge", action="store_true", help="Skip LLM judge, automated only")
+    parser.add_argument(
+        "--reuse-judge-scores",
+        action="store_true",
+        help="Reuse judge results already in scores.jsonl while recomputing automated scores",
+    )
+    parser.add_argument(
+        "--retry-judge-failures",
+        action="store_true",
+        help="Reuse valid judge results in scores.jsonl and retry only missing or failed judges",
+    )
     args = parser.parse_args()
+
+    modes = sum((args.skip_judge, args.reuse_judge_scores, args.retry_judge_failures))
+    if modes > 1:
+        print("Choose only one of --skip-judge, --reuse-judge-scores, or --retry-judge-failures")
+        return 2
 
     run_dir = Path(args.run_dir)
     if not run_dir.is_absolute():
@@ -247,6 +305,27 @@ def main() -> int:
     scenarios = load_scenarios()
     outputs = load_jsonl(outputs_path)
     judge_system = JUDGE_PROMPT_PATH.read_text() if not args.skip_judge else ""
+
+    prior_judges: dict[tuple[str, str], dict] = {}
+    scores_path = run_dir / "scores.jsonl"
+    if args.reuse_judge_scores or args.retry_judge_failures:
+        if not scores_path.exists():
+            print(f"Cannot resume judge scores: {scores_path} does not exist")
+            return 2
+        for prior in load_jsonl(scores_path):
+            judge = prior.get("judge")
+            if judge:
+                prior_judges[(prior["scenario_id"], prior["model"])] = judge
+        if args.reuse_judge_scores:
+            missing_prior = [
+                (row["scenario_id"], row["model"])
+                for row in outputs
+                if (row["scenario_id"], row["model"]) not in prior_judges
+                and not row.get("error")
+            ]
+            if missing_prior:
+                print(f"Cannot reuse judge scores; missing {len(missing_prior)} scenario/model pairs")
+                return 2
 
     scores: list[dict] = []
     total = len(outputs)
@@ -266,9 +345,23 @@ def main() -> int:
             "category": scenario["category"],
             "model": sut_model,
             "automated": auto,
+            "observed": {
+                "input_tokens": run_record.get("input_tokens"),
+                "output_tokens": run_record.get("output_tokens"),
+                "elapsed_ms": run_record.get("elapsed_ms"),
+                "cost_usd": run_record.get("cost_usd"),
+            },
         }
 
-        if not args.skip_judge and not run_record.get("error"):
+        prior_judge = prior_judges.get((scenario_id, sut_model))
+        reuse_prior = prior_judge and (
+            args.reuse_judge_scores
+            or (args.retry_judge_failures and has_valid_judge_scores(prior_judge))
+        )
+        if reuse_prior and not args.skip_judge and not run_record.get("error"):
+            entry["judge"] = prior_judge
+            print(f"  [{i}/{total}] {scenario_id}/{sut_model} - reused judge result")
+        elif not args.skip_judge and not run_record.get("error"):
             judge_model = JUDGE_PAIRING.get(sut_model)
             if not judge_model:
                 print(f"  [{i}/{total}] {scenario_id}/{sut_model} - no judge pairing defined, skipping judge")
@@ -287,7 +380,6 @@ def main() -> int:
 
         scores.append(entry)
 
-    scores_path = run_dir / "scores.jsonl"
     with scores_path.open("w") as f:
         for s in scores:
             f.write(json.dumps(s) + "\n")
@@ -304,7 +396,7 @@ def main() -> int:
         print(f"  {model:30s} mean={agg['mean_score']:.2f}  n={agg['n']}  judge_failures={agg['judge_failures']}")
 
     print()
-    print(f"Next: python -m src.leaderboard --run-dir {run_dir.relative_to(REPO_ROOT)}")
+    print(f"Next: python -m src.leaderboard --run-dir {display_path(run_dir)}")
     return 0
 
 

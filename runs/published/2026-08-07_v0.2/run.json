@@ -1,0 +1,21 @@
+{
+  "run": "2026-08-07_v0.2",
+  "published_on": "2026-08-07",
+  "runner_commit": "867989b70b892aa1e672318a35addabbd10b4b50",
+  "scorer_commit": "867989b70b892aa1e672318a35addabbd10b4b50",
+  "models": [
+    "claude-opus-5",
+    "claude-sonnet-5",
+    "gemini-3.6-flash",
+    "gpt-5.6-terra"
+  ],
+  "judge_models": [
+    "claude-sonnet-5",
+    "gpt-5.6-terra"
+  ],
+  "scenario_count": 5,
+  "output_count": 20,
+  "sut_cost_usd": 0.145427,
+  "judge_cost_usd": 0.209314,
+  "note": "v0.2 pilot: 5 scenarios x 4 current models; quality plus observed API latency and estimated SUT cost; 20/20 judge scores valid after targeted retries; human calibration pending"
+}

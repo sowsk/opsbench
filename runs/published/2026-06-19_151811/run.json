@@ -1,0 +1,20 @@
+{
+  "run": "2026-06-19_151811",
+  "published_on": "2026-08-07",
+  "runner_commit": "891706cfb8953ffca7195f480d8f18f19d615a7b",
+  "scorer_commit": "commit containing this published artifact",
+  "models": [
+    "claude-opus-4-8",
+    "claude-sonnet-4-6",
+    "gemini-2.5-pro"
+  ],
+  "judge_models": [
+    "claude-sonnet-4-6",
+    "gemini-2.5-pro"
+  ],
+  "scenario_count": 5,
+  "output_count": 15,
+  "sut_cost_usd": 0.132047,
+  "judge_cost_usd": 0.169723,
+  "note": "v0.1-lite pilot; automated entity scores corrected after e.g. regex false positive; judge scores reused unchanged; human calibration pending"
+}

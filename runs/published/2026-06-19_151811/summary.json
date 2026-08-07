@@ -1,0 +1,41 @@
+{
+  "claude-sonnet-4-6": {
+    "n": 5,
+    "judged_n": 5,
+    "judge_failures": 0,
+    "dimension_means": {
+      "factual_accuracy": 1.8,
+      "signal_to_noise": 1.8,
+      "action_orientation": 1.8,
+      "brevity": 2.0,
+      "no_hallucinated_entities": 2.0
+    },
+    "mean_score": 1.88
+  },
+  "claude-opus-4-8": {
+    "n": 5,
+    "judged_n": 5,
+    "judge_failures": 0,
+    "dimension_means": {
+      "factual_accuracy": 2.0,
+      "signal_to_noise": 2.0,
+      "action_orientation": 2.0,
+      "brevity": 2.0,
+      "no_hallucinated_entities": 2.0
+    },
+    "mean_score": 2.0
+  },
+  "gemini-2.5-pro": {
+    "n": 5,
+    "judged_n": 5,
+    "judge_failures": 0,
+    "dimension_means": {
+      "factual_accuracy": 1.6,
+      "signal_to_noise": 1.8,
+      "action_orientation": 1.8,
+      "brevity": 2.0,
+      "no_hallucinated_entities": 2.0
+    },
+    "mean_score": 1.84
+  }
+}

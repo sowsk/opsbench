@@ -2,7 +2,7 @@
 
 A public benchmark for how well LLMs summarize and reason about operational alerts. Run by a PM who is tired of vendor demos that test only the easy cases.
 
-v0.1 scores one task: **alert summarization**. Given a raw observability alert plus 5 minutes of preceding context, can a frontier LLM produce a 2-sentence summary that is factually accurate, action-oriented, and does not invent things that were not in the input?
+v0.2 scores one task: **alert summarization**. Given a raw observability alert plus 5 minutes of preceding context, can a frontier LLM produce a 2-sentence summary that is factually accurate, action-oriented, and does not invent things that were not in the input? It reports observed API latency and estimated cost alongside quality rather than blending them into one score.
 
 Three things make opsbench different from the AIOps benchmarks vendors publish in their own white papers:
 
@@ -10,9 +10,13 @@ Three things make opsbench different from the AIOps benchmarks vendors publish i
 2. Each model under test is judged by a model from a different family, so Claude is not grading itself.
 3. The "what this does NOT measure" section is the longest in this README on purpose.
 
+## Current status
+
+v0.2 is a five-scenario pilot across five operational categories and four current models. Its cross-family judge results have **not yet been calibrated against author scoring**, so the leaderboard is useful as a pilot result, not a statistically reliable model ranking. The raw run artifacts are published under [`runs/published/2026-08-07_v0.2`](runs/published/2026-08-07_v0.2), and the remaining calibration work is under [`validation/`](validation/).
+
 ## What "good" looks like
 
-Before installing anything, here is one of the 25 v0.1 scenarios.
+Before installing anything, here is one of the five v0.2 scenarios.
 
 **Alert (`network-outage-001-bgp-flap`):**
 
@@ -37,33 +41,38 @@ Plus 9 lines of preceding context, including two deliberately irrelevant lines (
 
 A model that omits CHG-44218, hallucinates a new IP, leads with the slack message, or writes 5 sentences instead of 2 loses points. A model that names the change, ignores the noise, and proposes a defensible next action scores well.
 
-Full scenario format and the other 24: [scenarios/SCHEMA.md](scenarios/SCHEMA.md).
+Full scenario format and the other four: [scenarios/SCHEMA.md](scenarios/SCHEMA.md).
 
 ## Use this if...
 
 - **You are picking a model for an incident copilot or alert summarizer.** Open the leaderboard, sort by the dimensions you care about (factual accuracy if your concern is trust, brevity if you have a UI constraint), and stop relying on vendor blog posts.
-- **You are about to ship an AI alerting feature.** Run your candidate prompt and model against the suite before you put it in front of an SRE. Failing on opsbench means failing in production, only louder.
+- **You are about to pilot an AI alerting feature.** Run your candidate prompt and model against the suite before you put it in front of an SRE. A failure here identifies a pre-production problem worth investigating; a pass does not prove production readiness.
 - **You are evaluating an AIOps vendor.** Ask them to publish their numbers against this benchmark. If they refuse, that is the answer.
-- **You are a PM or engineer building eval suites for ops AI.** Use this as a worked example: 5-dimension rubric, anti-bias judge pairing, automated plus LLM-as-judge split, validation against human scoring. Fork and adapt.
+- **You are a PM or engineer building eval suites for ops AI.** Use this as a worked example: 5-dimension rubric, cross-family judge pairing, automated plus LLM-as-judge split, and a transparent author-calibration workflow. Fork and adapt.
 - **You are an SRE skeptical of "AI for on-call" claims.** Run the suite yourself in 10 minutes for $2. Then form an opinion.
 
 ## Leaderboard
 
 <!-- LEADERBOARD:START -->
-## Leaderboard (2026-06-19_151811)
+## Leaderboard (2026-08-07_v0.2)
 
-| Rank | Model | Mean score (0-2) | Factual accuracy | Signal/noise | Action orientation | Brevity | No hallucination |
-|---|---|---|---|---|---|---|---|
-| 1 | `claude-opus-4-8` | **1.92** | 2.00 | 2.00 | 2.00 | 2.00 | 1.60 |
-| 2 | `gemini-2.5-pro` | **1.84** | 1.60 | 1.80 | 1.80 | 2.00 | 2.00 |
-| 3 | `claude-sonnet-4-6` | **1.80** | 1.80 | 1.80 | 1.80 | 2.00 | 1.60 |
+| Rank | Model | Mean quality (0-2) | Factual accuracy | Signal/noise | Action orientation | Brevity | No hallucination | Median observed latency | Avg cost/scenario |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | `gpt-5.6-terra` | **1.96** | 2.00 | 1.80 | 2.00 | 2.00 | 2.00 | 2.40s | $0.0034 |
+| 2 | `claude-sonnet-5` | **1.88** | 1.60 | 1.80 | 2.00 | 2.00 | 2.00 | 5.10s | $0.0055 |
+| 3 | `claude-opus-5` | **1.76** | 1.20 | 1.80 | 1.80 | 2.00 | 2.00 | 6.45s | $0.0181 |
+| 4 | `gemini-3.6-flash` | **1.16** | 1.20 | 0.80 | 0.00 | 1.80 | 2.00 | 3.82s | $0.0021 |
 
-Run: `2026-06-19_151811`. Reproduce: `python -m src.run_bench` then `python -m src.score_outputs --run-dir runs/2026-06-19_151811` then `python -m src.leaderboard --run-dir runs/2026-06-19_151811`.
+Run: `2026-08-07_v0.2`. Artifacts: `runs/published/2026-08-07_v0.2`.
+
+> Quality determines rank. Latency is median end-to-end API time over five sequential calls and includes network/provider overhead; cost is estimated from the recorded tokens and pricing snapshot.
+
+> Run note: v0.2 pilot: 5 scenarios x 4 current models; quality plus observed API latency and estimated SUT cost; 20/20 judge scores valid after targeted retries; human calibration pending
 <!-- LEADERBOARD:END -->
 
 ## How it works
 
-1. **Scenarios** in `scenarios/` are 25 synthetic alert payloads across 4 categories (network outage, app perf regression, security event, capacity warning). Each JSON file has the raw alert, 5 minutes of preceding context, a ground-truth entity set, and a reference summary. See [scenarios/SCHEMA.md](scenarios/SCHEMA.md).
+1. **Scenarios** in `scenarios/` are five synthetic alert payloads across five categories (network outage, compute fabric, app performance regression, security event, capacity warning). Each JSON file has the raw alert, preceding context, a ground-truth entity set, and a reference summary. See [scenarios/SCHEMA.md](scenarios/SCHEMA.md).
 2. **Runner** (`src/run_bench.py`) sends each scenario to each model in `--models`, writes one row per (scenario, model) to `runs/<timestamp>/outputs.jsonl`.
 3. **Scorer** (`src/score_outputs.py`) runs two passes per output. Pass 1 is automated (hallucinated-entity check via regex, brevity check). Pass 2 is LLM-as-judge with anti-bias pairing: every model under test is judged by a model from a different family.
 4. **Leaderboard** (`src/leaderboard.py`) aggregates `scores.jsonl` into a markdown table and updates this README in place.
@@ -74,8 +83,8 @@ Full rubric, validation plan, and known methodology limitations: [methodology.md
 
 | Path | Command | Status |
 |---|---|---|
-| pip (when packaged) | `pip install opsbench` | Coming v0.2 |
-| uvx (zero-install run) | `uvx opsbench run --models claude-opus-4-8,gemini-2.5-pro` | Coming v0.2 |
+| pip (when packaged) | `pip install opsbench` | Not yet packaged |
+| uvx (zero-install run) | `uvx opsbench run --models claude-sonnet-5,gpt-5.6-terra` | Planned |
 | Clone and venv | see below | Works today |
 
 ```bash
@@ -85,9 +94,10 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# fill in ANTHROPIC_API_KEY and GEMINI_API_KEY (OPENAI_API_KEY is v0.2)
+# fill in the provider keys for the models you want to run
 
-python -m src.run_bench --models claude-sonnet-4-6,claude-opus-4-8,gemini-2.5-pro
+python -m src.validate_scenarios
+python -m src.run_bench
 python -m src.score_outputs --run-dir runs/<timestamp>
 python -m src.leaderboard --run-dir runs/<timestamp>
 ```
@@ -96,25 +106,30 @@ python -m src.leaderboard --run-dir runs/<timestamp>
 
 You bring one API key per provider you want to test. Costs are per-provider, no opsbench markup.
 
-| Provider | Env var | Estimated cost, full 25-scenario run | Per-million-token pricing (June 2026) |
-|---|---|---|---|
-| Anthropic | `ANTHROPIC_API_KEY` | ~$0.90 Opus 4.8 SUT + ~$0.40 Sonnet 4.6 judge | $5 in / $25 out (Opus), $3 in / $15 out (Sonnet) |
-| Google | `GEMINI_API_KEY` | ~$0.60 Gemini 2.5 Pro (SUT + judge) | $3.50 in / $14 out |
-| OpenAI (v0.2) | `OPENAI_API_KEY` | ~$0.90 GPT-5 SUT | $5 in / $25 out |
+The runner supports the historical v0.1-lite models plus these current model tiers. Prices are standard short-context API rates per million input/output tokens, snapshotted on **August 7, 2026**. Sonnet 5 uses Anthropic's introductory $2/$10 rate through August 31, 2026.
 
-A full v0.1 run (25 scenarios x 3 SUT models x 1 judge call each) costs roughly $1.50 to $3 and finishes in 6 to 10 minutes. Pricing snapshot is in [src/models.py](src/models.py); update there when providers change.
+| Provider | Models | Input / output per 1M tokens |
+|---|---|---|
+| Anthropic | `claude-fable-5`; `claude-opus-5`; `claude-sonnet-5` | $10/$50; $5/$25; $2/$10 |
+| OpenAI | `gpt-5.6-sol`; `gpt-5.6-terra`; `gpt-5.6-luna` | $5/$30; $2/$12; $0.20/$1.20 |
+| Google | `gemini-3.6-flash`; `gemini-3.5-flash-lite`; `gemini-2.5-pro` | $1.50/$7.50; $0.30/$2.50; $1.25/$10 |
+
+Pricing changes over time. Update [the pricing registry](src/models.py) and record a snapshot date before publishing a cost comparison.
+
+Official pricing/model sources: [Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview), [OpenAI](https://developers.openai.com/api/docs/pricing), and [Google](https://ai.google.dev/gemini-api/docs/pricing).
 
 ## Anti-bias judge pairing
 
-LLM-as-judge has a well-known self-preference bias: a model judging its own output scores it higher than another model would. opsbench controls for this by pairing each system-under-test (SUT) with a judge from a different model family.
+LLM-as-judge can exhibit self-preference. OpsBench avoids same-family judging, but cross-family pairing alone does not prove that bias has been controlled; the human-calibration step remains required.
 
-v0.1 ships a two-family scheme (Anthropic + Google). v0.2 adds OpenAI once a personal API key is available.
+The v0.2 run uses two cross-family judges. Anthropic outputs are judged by OpenAI; OpenAI and Google outputs are judged by Anthropic.
 
 | SUT | Judge |
 |---|---|
-| Claude Sonnet 4.6 | Gemini 2.5 Pro |
-| Claude Opus 4.8 | Gemini 2.5 Pro |
-| Gemini 2.5 Pro | Claude Sonnet 4.6 |
+| Claude Opus 5 | GPT-5.6 Terra |
+| Claude Sonnet 5 | GPT-5.6 Terra |
+| GPT-5.6 Terra | Claude Sonnet 5 |
+| Gemini 3.6 Flash | Claude Sonnet 5 |
 
 ## Why this exists
 
@@ -124,12 +139,11 @@ Operational AI (AIOps copilots, SRE assistants, NOC agents) is shipping fast ins
 
 ## What this benchmark does NOT measure
 
-- **Latency under load.** Single-call benchmark, no concurrency or streaming test.
+- **Latency under load.** Reported latency is end-to-end API time from five sequential calls per model. It includes network and provider overhead and is not a concurrency, streaming, or load test.
 - **Multi-turn dialogue.** Each scenario is one-shot summarization.
 - **Tool use.** Models are not given tools (CMDB lookup, runbook retrieval, ticket creation). Adding tool use changes the task; planned for v0.3.
 - **Real customer data.** Scenarios are synthetic and modeled after public incident reports. No PII or proprietary telemetry. This means the benchmark cannot distinguish a model that pattern-matches well on public incident vocabulary from a model that would handle a novel real-world payload.
-- **Cost-quality tradeoff.** Reported tokens and cost are informational; the ranking does not penalize expensive models.
-- **GPT-5 and OpenAI models in v0.1.** The runner, scorer, and pricing tables already support them; GPT-5 joins the leaderboard in v0.2.
+- **A combined cost-quality score.** Cost and latency are reported separately; quality alone determines rank.
 
 ## Related work and inspiration
 
@@ -156,6 +170,6 @@ MIT.
 
 ## About
 
-Built by [Sowmya Krishnamoorthy](https://www.linkedin.com/in/sowmya-krishnamoorthy), senior PM at ThousandEyes (Cisco). I own the alerts, integrations, and dashboards platforms, and the AI / agentic strategy across them. I shipped Adaptive Alert Detection (77 percent fewer flapping alerts across 826 production orgs) and built an internal Claude-powered alert optimization tool. Real alert summarization is harder than benchmarks suggest. opsbench is my attempt to put a public number on it.
+Built by [Sowmya Krishnamoorthy](https://www.linkedin.com/in/sowmya-krishnamoorthy), senior PM at ThousandEyes (Cisco). I own the alerts, integrations, and dashboards platforms, and the AI / agentic strategy across them. I shipped Adaptive Alert Detection (77 percent fewer flapping alerts across 900+ production orgs) and built an internal GPT-4.1-powered alert optimization tool through Cisco CIRCUIT. Real alert summarization is harder than benchmarks suggest. opsbench is my attempt to put a public number on it.
 
 [@sowsk](https://github.com/sowsk) on GitHub.
