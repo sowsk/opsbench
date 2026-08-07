@@ -170,6 +170,7 @@ MIT.
 
 ## About
 
-Built by [Sowmya Krishnamoorthy](https://www.linkedin.com/in/sowmya-krishnamoorthy), senior PM at ThousandEyes (Cisco). I own the alerts, integrations, and dashboards platforms, and the AI / agentic strategy across them. I shipped Adaptive Alert Detection (77 percent fewer flapping alerts across 900+ production orgs) and built an internal GPT-4.1-powered alert optimization tool through Cisco CIRCUIT. Real alert summarization is harder than benchmarks suggest. opsbench is my attempt to put a public number on it.
+Built by [Sowmya Krishnamoorthy](https://www.linkedin.com/in/sowmya-krishnamoorthy), a senior product working on observability and AI for operations at ThousandEyes (Cisco). The question I keep coming back to is simple: when alerts are noisy and an incident is unfolding, can AI help an operator make a better decision?
 
+I built opsbench to test that question in public. It measures whether models can identify what matters, stay grounded in the evidence, and recommend a defensible next step. I'm interested in evals that reflect the messiness of real operational work.
 [@sowsk](https://github.com/sowsk) on GitHub.
